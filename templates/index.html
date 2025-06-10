@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Disease Detection System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .upload-area {
+            border: 2px dashed #4CAF50;
+            transition: all 0.3s ease;
+            background-color: #ffffff;
+        }
+        .upload-area:hover {
+            border-color: #2E7D32;
+            background-color: #f0fdf4;
+        }
+        .preview-image {
+            max-height: 400px;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        .severity-mild {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .severity-moderate {
+            background-color: #fef9c3;
+            color: #854d0e;
+        }
+        .severity-severe {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .treatment-section {
+            background-color: #f8fafc;
+            border-left: 4px solid #4CAF50;
+        }
+        .feature-card {
+            transition: all 0.3s ease;
+            border: 1px solid #e5e7eb;
+        }
+        .feature-card:hover {
+            background-color: #f0fdf4;
+            border-color: #4CAF50;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .batch-result-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .batch-result-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 5px 10px;
+            border-radius: 6px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <nav class="bg-white shadow-sm">
+        <div class="container mx-auto px-6 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-leaf text-green-600 text-2xl mr-3"></i>
+                    <span class="text-xl font-semibold text-gray-800">Plant Disease Detection System</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="camera-btn" class="text-gray-600 hover:text-green-600 transition-colors">
+                        <i class="fas fa-camera mr-2"></i>Camera
+                    </button>
+                    <button id="batch-btn" class="text-gray-600 hover:text-green-600 transition-colors">
+                        <i class="fas fa-images mr-2"></i>Batch Upload
+                    </button>
+                    <button id="compare-btn" class="text-gray-600 hover:text-green-600 transition-colors">
+                        <i class="fas fa-exchange-alt mr-2"></i>Compare
+                    </button>
+                    <button id="report-btn" class="text-gray-600 hover:text-green-600 transition-colors">
+                        <i class="fas fa-download mr-2"></i>Download Report
+                    </button>
+                    <button id="help-btn" class="text-gray-600 hover:text-green-600 transition-colors">
+                        <i class="fas fa-question-circle mr-2"></i>Help
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-green-700 mb-4">Detect Plant Diseases Instantly</h1>
+            <p class="text-gray-600 max-w-2xl mx-auto">Upload a clear image of a plant leaf to identify diseases and get severity assessment. Our AI-powered system provides accurate diagnosis and treatment recommendations.</p>
+        </header>
+
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
+            <!-- Main Upload Area -->
+            <div id="upload-area" class="upload-area rounded-lg p-8 text-center cursor-pointer mb-6">
+                <input type="file" id="file-input" class="hidden" accept="image/*" multiple>
+                <svg class="w-12 h-12 mx-auto mb-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <p class="text-gray-600">Click to upload or drag and drop</p>
+                <p class="text-sm text-gray-500 mt-2">Supported formats: JPG, PNG | Single or multiple files</p>
+            </div>
+
+            <!-- Camera Capture Section -->
+            <div id="camera-capture" class="hidden mb-6">
+                <div class="text-center">
+                    <h3 class="text-lg font-semibold mb-4">Camera Capture</h3>
+                    <video id="camera-video" class="w-full max-w-md mx-auto rounded-lg mb-4" autoplay></video>
+                    <canvas id="camera-canvas" class="hidden"></canvas>
+                    <div class="space-x-4">
+                        <button id="capture-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-camera mr-2"></i>Capture Photo
+                        </button>
+                        <button id="stop-camera-btn" class="text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Upload Results -->
+            <div id="batch-upload-area" class="hidden mb-6">
+                <div class="border-2 border-dashed border-green-400 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold mb-4 text-center">Batch Upload Results</h3>
+                    <div id="batch-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Batch results will be shown here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Single Image Preview -->
+            <div id="preview-container" class="hidden">
+                <img id="preview-image" class="preview-image mx-auto mb-6 rounded-lg" src="" alt="Preview">
+                <div class="text-center mb-6">
+                    <button id="analyze-btn" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                        Analyze Image
+                    </button>
+                    <button id="upload-another-btn" class="ml-4 text-green-600 hover:text-green-700">
+                        Upload Another
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Container -->
+            <div id="result-container" class="hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-microscope mr-3 text-green-600"></i>Analysis Results
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="result-card p-6">
+                            <div class="flex items-center mb-4">
+                                <i class="fas fa-bug text-red-500 text-xl mr-3"></i>
+                                <h3 class="text-lg font-semibold text-gray-700">Disease Detection</h3>
+                            </div>
+                            <p id="disease-result" class="text-xl font-semibold text-gray-800 mb-2"></p>
+                            <div id="confidence-badge" class="inline-block px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-chart-pie mr-1"></i>
+                                <span id="confidence-result"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="result-card p-6">
+                            <div class="flex items-center mb-4">
+                                <i class="fas fa-exclamation-triangle text-yellow-500 text-xl mr-3"></i>
+                                <h3 class="text-lg font-semibold text-gray-700">Severity Assessment</h3>
+                            </div>
+                            <div id="severity-badge" class="text-center p-4 rounded-lg">
+                                <p id="severity-result" class="text-xl font-semibold mb-2"></p>
+                                <div id="severity-indicator" class="w-full h-2 rounded-full bg-gray-200">
+                                    <div class="severity-bar h-full rounded-full transition-all duration-500"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="treatment-section rounded-lg p-6 mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-notes-medical mr-3 text-green-600"></i>Treatment Recommendations
+                    </h3>
+                    <div id="treatment-content" class="space-y-4">
+                        <!-- Treatment recommendations will be inserted here -->
+                    </div>
+                </div>
+
+                <div class="prevention-tips bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-shield-alt mr-3 text-green-600"></i>Prevention Tips
+                    </h3>
+                    <ul id="prevention-tips" class="list-disc list-inside space-y-2 text-gray-600">
+                        <!-- Prevention tips will be inserted here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg flex items-center">
+            <svg class="spinner w-8 h-8 mr-3 text-green-600" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-gray-700">Analyzing image...</span>
+        </div>
+    </div>
+
+    <!-- Comparison Modal -->
+    <div id="comparison-modal" class="modal">
+        <div class="bg-white rounded-lg p-8 max-w-6xl mx-4 w-full max-h-screen overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-semibold text-gray-800">Compare Analysis Results</h3>
+                <button id="close-comparison" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="comparison-content" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Comparison content will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const previewContainer = document.getElementById('preview-container');
+        const previewImage = document.getElementById('preview-image');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const uploadAnotherBtn = document.getElementById('upload-another-btn');
+        const resultContainer = document.getElementById('result-container');
+        const diseaseResult = document.getElementById('disease-result');
+        const severityResult = document.getElementById('severity-result');
+        const confidenceResult = document.getElementById('confidence-result');
+        const loading = document.getElementById('loading');
+        const treatmentContent = document.getElementById('treatment-content');
+        const preventionTips = document.getElementById('prevention-tips');
+
+        // Camera elements
+        const cameraBtn = document.getElementById('camera-btn');
+        const cameraCapture = document.getElementById('camera-capture');
+        const cameraVideo = document.getElementById('camera-video');
+        const cameraCanvas = document.getElementById('camera-canvas');
+        const captureBtn = document.getElementById('capture-btn');
+        const stopCameraBtn = document.getElementById('stop-camera-btn');
+
+        // Batch upload elements
+        const batchBtn = document.getElementById('batch-btn');
+        const batchUploadArea = document.getElementById('batch-upload-area');
+        const batchResults = document.getElementById('batch-results');
+
+        // Feature buttons
+        const compareBtn = document.getElementById('compare-btn');
+        const reportBtn = document.getElementById('report-btn');
+        const helpBtn = document.getElementById('help-btn');
+
+        // Current analysis data for features
+        let currentAnalysis = null;
+        let batchAnalyses = [];
+        let cameraStream = null;
+
+        // Disease treatments database
+        const diseaseTreatments = {
+            'Apple rust leaf': {
+                treatments: [
+                    'Remove and destroy infected leaves and debris',
+                    'Apply fungicides containing myclobutanil or propiconazole',
+                    'Maintain good air circulation by proper pruning',
+                    'Water at the base of plants to avoid wet foliage'
+                ],
+                prevention: [
+                    'Plant resistant varieties when available',
+                    'Maintain proper plant spacing',
+                    'Avoid overhead irrigation',
+                    'Regular inspection of plants'
+                ]
+            },
+            'Apple Scab Leaf': {
+                treatments: [
+                    'Apply protective fungicide sprays',
+                    'Remove fallen leaves and fruit',
+                    'Improve air circulation through pruning',
+                    'Maintain proper soil drainage'
+                ],
+                prevention: [
+                    'Choose resistant apple varieties',
+                    'Clean up fallen leaves in autumn',
+                    'Proper spacing between trees',
+                    'Avoid overhead watering'
+                ]
+            },
+            'healthy': {
+                treatments: [
+                    'Continue current care routine',
+                    'Monitor plant regularly for any changes',
+                    'Maintain optimal growing conditions'
+                ],
+                prevention: [
+                    'Keep up good maintenance practices',
+                    'Regular watering and fertilization',
+                    'Proper pruning and care'
+                ]
+            }
+        };
+
+        // Default prevention tips
+        const defaultPreventionTips = [
+            'Regular monitoring of plant health',
+            'Maintain proper plant spacing for good air circulation',
+            'Practice crop rotation when possible',
+            'Keep garden tools clean and sanitized',
+            'Water plants at the base to avoid wet foliage'
+        ];
+
+        // Handle drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('bg-green-50');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('bg-green-50');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('bg-green-50');
+            const files = Array.from(e.dataTransfer.files);
+            if (files.length > 1) {
+                handleBatchUpload(files);
+            } else {
+                handleFile(files[0]);
+            }
+        });
+
+        // Handle click upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 1) {
+                handleBatchUpload(files);
+            } else {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    uploadArea.classList.add('hidden');
+                    previewContainer.classList.remove('hidden');
+                    resultContainer.classList.add('hidden');
+                    batchUploadArea.classList.add('hidden');
+                    cameraCapture.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function handleBatchUpload(files) {
+            const imageFiles = files.filter(file => file.type.startsWith('image/'));
+            if (imageFiles.length === 0) {
+                showNotification('Please select image files only', 'error');
+                return;
+            }
+
+            uploadArea.classList.add('hidden');
+            previewContainer.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            cameraCapture.classList.add('hidden');
+            batchUploadArea.classList.remove('hidden');
+
+            batchResults.innerHTML = '';
+            batchAnalyses = [];
+
+            imageFiles.forEach((file, index) => {
+                processBatchImage(file, index);
+            });
+        }
+
+        async function processBatchImage(file, index) {
+            const resultCard = document.createElement('div');
+            resultCard.className = 'batch-result-card p-4';
+            resultCard.innerHTML = `
+                <img src="${URL.createObjectURL(file)}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Batch image ${index + 1}">
+                <div class="text-center">
+                    <div class="spinner w-6 h-6 mx-auto text-green-600" viewBox="0 0 24 24">
+                        <div class="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p class="text-sm text-gray-600 mt-2">Analyzing...</p>
+                </div>
+            `;
+            batchResults.appendChild(resultCard);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.error) {
+                    resultCard.innerHTML = `
+                        <img src="${URL.createObjectURL(file)}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Batch image ${index + 1}">
+                        <div class="text-center">
+                            <p class="text-red-600 text-sm">Error: ${result.error}</p>
+                        </div>
+                    `;
+                } else {
+                    batchAnalyses.push({
+                        ...result,
+                        imageUrl: URL.createObjectURL(file),
+                        fileName: file.name
+                    });
+
+                    resultCard.innerHTML = `
+                        <img src="${URL.createObjectURL(file)}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Batch image ${index + 1}">
+                        <div class="text-center">
+                            <h4 class="font-semibold text-sm text-gray-800 mb-1">${result.disease}</h4>
+                            <div class="flex justify-center space-x-2 text-xs">
+                                <span class="px-2 py-1 rounded-full ${getSeverityClass(result.severity)}">${result.severity || 'N/A'}</span>
+                                <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-800">${result.confidence ? result.confidence + '%' : 'N/A'}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultCard.innerHTML = `
+                    <img src="${URL.createObjectURL(file)}" class="w-full h-32 object-cover rounded-lg mb-3" alt="Batch image ${index + 1}">
+                    <div class="text-center">
+                        <p class="text-red-600 text-sm">Analysis failed</p>
+                    </div>
+                `;
+            }
+        }
+
+        function getSeverityClass(severity) {
+            switch(severity) {
+                case 'Mild': return 'bg-green-100 text-green-800';
+                case 'Moderate': return 'bg-yellow-100 text-yellow-800';
+                case 'Severe': return 'bg-red-100 text-red-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function updateSeverityUI(severity) {
+            const severityBadge = document.getElementById('severity-badge');
+            const severityBar = document.querySelector('.severity-bar');
+            
+            // Remove existing severity classes
+            severityBadge.classList.remove('severity-mild', 'severity-moderate', 'severity-severe');
+            
+            // Set new severity class and progress bar
+            switch(severity) {
+                case 'Mild':
+                    severityBadge.classList.add('severity-mild');
+                    severityBar.style.width = '33%';
+                    severityBar.style.backgroundColor = '#22c55e';
+                    break;
+                case 'Moderate':
+                    severityBadge.classList.add('severity-moderate');
+                    severityBar.style.width = '66%';
+                    severityBar.style.backgroundColor = '#eab308';
+                    break;
+                case 'Severe':
+                    severityBadge.classList.add('severity-severe');
+                    severityBar.style.width = '100%';
+                    severityBar.style.backgroundColor = '#ef4444';
+                    break;
+                default:
+                    severityBar.style.width = '0%';
+            }
+        }
+
+        function updateTreatmentRecommendations(disease) {
+            const treatments = diseaseTreatments[disease]?.treatments || [
+                'Consult a local agricultural expert or extension service',
+                'Remove affected leaves to prevent spread',
+                'Consider applying appropriate fungicides or pesticides',
+                'Ensure proper plant care and maintenance'
+            ];
+
+            const prevention = diseaseTreatments[disease]?.prevention || defaultPreventionTips;
+
+            treatmentContent.innerHTML = treatments.map(treatment => `
+                <div class="flex items-start space-x-3">
+                    <i class="fas fa-check-circle text-green-500 mt-1"></i>
+                    <p class="text-gray-700">${treatment}</p>
+                </div>
+            `).join('');
+
+            preventionTips.innerHTML = prevention.map(tip => `
+                <li class="flex items-start space-x-3">
+                    <i class="fas fa-shield-alt text-green-500 mt-1"></i>
+                    <span>${tip}</span>
+                </li>
+            `).join('');
+        }
+
+        // Camera functionality
+        cameraBtn.addEventListener('click', async () => {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } // Use back camera on mobile
+                });
+                cameraVideo.srcObject = cameraStream;
+                
+                uploadArea.classList.add('hidden');
+                previewContainer.classList.add('hidden');
+                resultContainer.classList.add('hidden');
+                batchUploadArea.classList.add('hidden');
+                cameraCapture.classList.remove('hidden');
+            } catch (error) {
+                showNotification('Camera access denied or not available', 'error');
+            }
+        });
+
+        captureBtn.addEventListener('click', () => {
+            const canvas = cameraCanvas;
+            const context = canvas.getContext('2d');
+            
+            canvas.width = cameraVideo.videoWidth;
+            canvas.height = cameraVideo.videoHeight;
+            
+            context.drawImage(cameraVideo, 0, 0);
+            
+            canvas.toBlob(blob => {
+                const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+                handleFile(file);
+                stopCamera();
+            });
+        });
+
+        stopCameraBtn.addEventListener('click', stopCamera);
+
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            cameraCapture.classList.add('hidden');
+            uploadArea.classList.remove('hidden');
+        }
+
+        // Batch upload button
+        batchBtn.addEventListener('click', () => {
+            fileInput.setAttribute('multiple', 'multiple');
+            fileInput.click();
+        });
+
+        // Analysis function
+        analyzeBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0] || new File([await fetch(previewImage.src).then(r => r.blob())], 'image.jpg');
+            const formData = new FormData();
+            formData.append('file', file);
+
+            loading.style.display = 'flex';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.error) {
+                    showNotification(result.error, 'error');
+                } else {
+                    // Store current analysis
+                    currentAnalysis = {
+                        ...result,
+                        imageUrl: previewImage.src,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    // Update results
+                    diseaseResult.textContent = result.disease;
+                    severityResult.textContent = result.severity || 'N/A';
+                    confidenceResult.textContent = result.confidence ? `${result.confidence}%` : 'N/A';
+                    
+                    // Update UI elements
+                    updateSeverityUI(result.severity);
+                    updateTreatmentRecommendations(result.disease);
+                    
+                    resultContainer.classList.remove('hidden');
+                    showNotification('Analysis completed successfully');
+                }
+            } catch (error) {
+                showNotification('Error analyzing image. Please try again.', 'error');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+
+        uploadAnotherBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            fileInput.removeAttribute('multiple');
+            previewImage.src = '';
+            uploadArea.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            batchUploadArea.classList.add('hidden');
+        });
+
+        // Compare functionality
+        compareBtn.addEventListener('click', () => {
+            if (batchAnalyses.length < 2 && !currentAnalysis) {
+                showNotification('Please analyze at least 2 images to compare', 'error');
+                return;
+            }
+
+            const modal = document.getElementById('comparison-modal');
+            const content = document.getElementById('comparison-content');
+            
+            let analysesToCompare = [];
+            if (currentAnalysis) analysesToCompare.push(currentAnalysis);
+            analysesToCompare = analysesToCompare.concat(batchAnalyses.slice(0, 3));
+
+            content.innerHTML = analysesToCompare.map((analysis, index) => `
+                <div class="feature-card p-6 rounded-lg">
+                    <img src="${analysis.imageUrl}" class="w-full h-40 object-cover rounded-lg mb-4" alt="Comparison ${index + 1}">
+                    <h4 class="font-semibold text-lg mb-2">${analysis.disease}</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Severity:</span>
+                            <span class="px-2 py-1 rounded-full text-xs ${getSeverityClass(analysis.severity)}">${analysis.severity || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Confidence:</span>
+                            <span class="px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">${analysis.confidence ? analysis.confidence + '%' : 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            modal.classList.add('show');
+        });
+
+        document.getElementById('close-comparison').addEventListener('click', () => {
+            document.getElementById('comparison-modal').classList.remove('show');
+        });
+
+        // Download report functionality
+        reportBtn.addEventListener('click', () => {
+            if (!currentAnalysis && batchAnalyses.length === 0) {
+                showNotification('No analysis data available for report', 'error');
+                return;
+            }
+
+            generateReport();
+        });
+
+        function generateReport() {
+            const analyses = currentAnalysis ? [currentAnalysis, ...batchAnalyses] : batchAnalyses;
+            
+            let reportContent = `
+Plant Disease Detection Report
+Generated on: ${new Date().toLocaleString()}
+========================================
+
+`;
+
+            analyses.forEach((analysis, index) => {
+                reportContent += `
+Analysis ${index + 1}:
+- Disease: ${analysis.disease}
+- Severity: ${analysis.severity || 'N/A'}
+- Confidence: ${analysis.confidence ? analysis.confidence + '%' : 'N/A'}
+- Timestamp: ${new Date(analysis.timestamp).toLocaleString()}
+
+Treatment Recommendations:
+${(diseaseTreatments[analysis.disease]?.treatments || []).map(t => `• ${t}`).join('\n')}
+
+Prevention Tips:
+${(diseaseTreatments[analysis.disease]?.prevention || defaultPreventionTips).map(t => `• ${t}`).join('\n')}
+
+----------------------------------------
+`;
+            });
+
+            const blob = new Blob([reportContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `plant-disease-report-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification('Report downloaded successfully');
+        }
+
+        // Help functionality
+        helpBtn.addEventListener('click', () => {
+            const helpContent = `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div class="bg-white rounded-lg p-8 max-w-2xl mx-4 max-h-screen overflow-y-auto">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-2xl font-semibold text-gray-800">How to Use</h3>
+                            <button class="text-gray-500 hover:text-gray-700" onclick="this.parentElement.parentElement.parentElement.remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-4 text-gray-600">
+                            <p><i class="fas fa-upload text-green-600 mr-2"></i> <strong>Upload Image:</strong> Click the upload area or drag and drop a leaf image.</p>
+                            <p><i class="fas fa-camera text-green-600 mr-2"></i> <strong>Camera Capture:</strong> Use the camera button to take photos directly.</p>
+                            <p><i class="fas fa-images text-green-600 mr-2"></i> <strong>Batch Upload:</strong> Upload multiple images at once for batch analysis.</p>
+                            <p><i class="fas fa-search text-green-600 mr-2"></i> <strong>Analysis:</strong> Click "Analyze Image" to get disease detection results.</p>
+                            <p><i class="fas fa-exchange-alt text-green-600 mr-2"></i> <strong>Compare:</strong> Compare results from multiple analyses side by side.</p>
+                            <p><i class="fas fa-download text-green-600 mr-2"></i> <strong>Download Report:</strong> Export analysis results as a text report.</p>
+                        </div>
+                        <div class="mt-6 p-4 bg-green-50 rounded-lg">
+                            <p class="text-green-800"><i class="fas fa-info-circle mr-2"></i> For best results, take photos in good lighting and focus on affected areas of the leaf.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', helpContent);
+        });
+
+        // Notification system
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300 ${
+                type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Animate out and remove
+            setTimeout(() => {
+                notification.classList.add('translate-x-full');
+                setTimeout(() => {
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('comparison-modal');
+            if (e.target === modal) {
+                modal.classList.remove('show');
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Plant Disease Detection System initialized');
+        });
+    </script>
+</body>
+</html>
