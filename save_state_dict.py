@@ -1,14 +1,22 @@
 import torch
-from app import EfficientNetWithAttention
 import os
+from model_arch import EfficientNetWithAttention, SpatialAttention
+import torch.serialization
 
-# Match number of classes from your project
+# Allowlist the custom classes
+torch.serialization.add_safe_globals({
+    'EfficientNetWithAttention': EfficientNetWithAttention,
+    'SpatialAttention': SpatialAttention
+})
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Infer class count
 num_classes = len([d for d in os.listdir('Dataset') if os.path.isdir(os.path.join('Dataset', d))])
 
-# Load full model first (as you originally did)
-model = torch.load('model.pth', map_location='cpu')
+# Load full model
+model = torch.load("model.pth", map_location=device, weights_only=False)
 
-# Save only state_dict
-torch.save(model.state_dict(), 'model_state_dict.pth')
-
-print("✅ Saved state_dict as model_state_dict.pth")
+# Save the weights only
+torch.save(model.state_dict(), "model_state_dict.pth")
+print("✅ model_state_dict.pth saved successfully!")
