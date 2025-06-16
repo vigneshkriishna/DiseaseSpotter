@@ -52,7 +52,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # First get the number of classes
 num_classes = len([d for d in os.listdir('Dataset') if os.path.isdir(os.path.join('Dataset', d))])
 # Load the complete model
-model = torch.load('model.pth', map_location=device, weights_only=False)
+model = EfficientNetWithAttention(num_classes)
+model.load_state_dict(torch.load('model_state_dict.pth', map_location=device))
+model.to(device)
 model.eval()
 
 # Image preprocessing
@@ -113,8 +115,9 @@ def predict():
         return jsonify({'error': str(e)})
 
 
-import os
+
 
 if __name__ == '__main__':
+    import os
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
